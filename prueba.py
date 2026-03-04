@@ -56,7 +56,7 @@ px.defaults.template = "plotly_dark"
 px.defaults.color_discrete_sequence = EQUESTRIAN_COLORS
 
 
-st.title("🐎 Equestrian Growth Intelligence Platform")
+st.title("🐎 EQUINELead")
 st.markdown("**Sistema para convertir visitantes casuales en leads calificados de alto ticket**")
 st.caption("Verticales: Eventos Ecuestres • Servicios Ecuestres • Caballos • Equipo Ecuestre")
 
