@@ -9,19 +9,15 @@ from sklearn.metrics import confusion_matrix, roc_auc_score
 from datetime import datetime
 import os
 
-# =====================================================
-# CONFIGURACIÓN
-# =====================================================
+
 st.set_page_config(
-    page_title="Equestrian Growth Dashboard",
+    page_title="EQUINELead",
     page_icon="🐎",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# =====================================================
-# ESTILO VISUAL PREMIUM
-# =====================================================
+
 st.markdown("""
 <style>
 .main {
@@ -46,9 +42,7 @@ h1, h2, h3 {
 </style>
 """, unsafe_allow_html=True)
 
-# =====================================================
-# PALETA GLOBAL
-# =====================================================
+
 EQUESTRIAN_COLORS = [
     "#C6A969",
     "#8B5E34",
@@ -61,16 +55,12 @@ EQUESTRIAN_COLORS = [
 px.defaults.template = "plotly_dark"
 px.defaults.color_discrete_sequence = EQUESTRIAN_COLORS
 
-# =====================================================
-# HEADER
-# =====================================================
+
 st.title("🐎 Equestrian Growth Intelligence Platform")
 st.markdown("**Sistema para convertir visitantes casuales en leads calificados de alto ticket**")
 st.caption("Verticales: Eventos Ecuestres • Servicios Ecuestres • Caballos • Equipo Ecuestre")
 
-# =====================================================
-# CARGA DATOS
-# =====================================================
+
 @st.cache_data
 def cargar_datos():
     try:
@@ -81,9 +71,7 @@ def cargar_datos():
 
 users = cargar_datos()
 
-# =====================================================
-# MODELO
-# =====================================================
+
 @st.cache_resource
 def entrenar_modelo_realista():
     features = [
@@ -123,9 +111,7 @@ def entrenar_modelo_realista():
 
 model_realista, X_train, X_test, y_train, y_test = entrenar_modelo_realista()
 
-# =====================================================
-# SIDEBAR
-# =====================================================
+
 with st.sidebar:
     if os.path.exists("imagen2.png"):
         st.image("imagen2.png", width=200)
@@ -151,9 +137,7 @@ with st.sidebar:
         f"{datetime.now().strftime('%d %b %Y %H:%M')}"
     )
 
-# =====================================================
-# 1 DATASET
-# =====================================================
+
 if pagina == "1. Dataset Sintético":
     st.header("1. Generación del Dataset Sintético")
     col1, col2 = st.columns(2)
@@ -175,9 +159,7 @@ Necesidad de eventos raros → **50,000 perfiles sintéticos**
 • Sesgo público
 """)
 
-# =====================================================
-# 2 EDA
-# =====================================================
+
 elif pagina == "2. Análisis Exploratorio (EDA)":
     st.header("2. Análisis Exploratorio")
     tab1, tab2, tab3 = st.tabs(["Resumen","Comportamiento","Correlaciones"])
@@ -207,9 +189,7 @@ elif pagina == "2. Análisis Exploratorio (EDA)":
         fig_corr = px.imshow(corr, text_auto=".2f", color_continuous_scale=[[0,"#8B5E34"], [0.5,"#111827"], [1,"#C6A969"]])
         st.plotly_chart(fig_corr, use_container_width=True)
 
-# =====================================================
-# 3 OBJETIVO GROWTH
-# =====================================================
+
 elif pagina == "3. Objetivo Growth & Clasificación":
     st.header("3. Objetivo del Growth")
     st.markdown("""
@@ -229,9 +209,7 @@ Modelo de **clasificación binaria**:
     with col2:
         st.error("Clase 0 (No prioritario)\n- Casual\n- Interesado medio")
 
-# =====================================================
-# 4 MODELADO
-# =====================================================
+
 elif pagina == "4. Modelado Predictivo":
     st.header("4. Modelado Predictivo")
     probs = model_realista.predict_proba(X_test)[:,1]
@@ -245,9 +223,7 @@ elif pagina == "4. Modelado Predictivo":
     fig_imp = px.bar(imp[::-1], orientation="h", color=imp[::-1], color_continuous_scale=["#8B5E34","#C6A969"], title="Importancia de Variables")
     st.plotly_chart(fig_imp, use_container_width=True)
 
-# =====================================================
-# 5 DASHBOARD ANALÍTICO
-# =====================================================
+
 elif pagina == "5. Dashboard Analítico":
     st.header("5. Dashboard Analítico")
     col1,col2 = st.columns([3,2])
@@ -258,9 +234,7 @@ elif pagina == "5. Dashboard Analítico":
     fig_scatter = px.scatter(users.sample(2000), x="viewed_high_value_content", y="high_intent_actions", color="lead_type", size="amount", opacity=0.7, symbol="lead_type")
     st.plotly_chart(fig_scatter, use_container_width=True)
 
-# =====================================================
-# 6 RECOMENDACIONES
-# =====================================================
+
 elif pagina == "6. Recomendaciones de Acción":
     st.header("6. Recomendaciones de Acción")
     col1, col2, col3 = st.columns(3)
@@ -274,9 +248,6 @@ elif pagina == "6. Recomendaciones de Acción":
     st.markdown("### Impacto esperado")
     st.table(pd.DataFrame({"Acción": ["Lead scoring realtime", "Segmentación dinámica", "Automatización marketing"], "Impacto": ["↑ Conversión", "↓ CAC", "↑ ROI"]}))
 
-# =====================================================
-# 7 PREDICCIÓN EN TIEMPO REAL
-# =====================================================
 elif pagina == "7. Predicción en Tiempo Real":
     st.header("7. Predicción en Tiempo Real")
     st.write("Simula un visitante y obtén su probabilidad de lead calificado")
