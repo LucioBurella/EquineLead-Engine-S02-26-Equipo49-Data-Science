@@ -9,7 +9,6 @@ from sklearn.metrics import confusion_matrix, roc_auc_score
 from datetime import datetime
 import os
 
-st.write("VERSION NUEVA 🚀", datetime.now())
 st.set_page_config(
     page_title="EQUINELead",
     page_icon="🐎",
