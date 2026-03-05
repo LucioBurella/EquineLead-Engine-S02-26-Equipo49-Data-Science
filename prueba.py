@@ -9,261 +9,307 @@ from sklearn.metrics import confusion_matrix, roc_auc_score
 from datetime import datetime
 import os
 
-st.set_page_config(
-    page_title="EQUINELead",
-    page_icon="🐎",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-
+# ────────────────────────────────────────────────
+# ESTILO VISUAL ECUESTRE (colores premium)
+# ────────────────────────────────────────────────
 st.markdown("""
 <style>
-.main {
-    animation: fadeIn 0.6s ease-in;
-}
-@keyframes fadeIn {
-    from {opacity:0; transform:translateY(10px);}
-    to {opacity:1; transform:translateY(0);}
-}
-[data-testid="metric-container"] {
-    background-color:#111827;
-    border:1px solid #1f2937;
-    padding:15px;
-    border-radius:14px;
-}
-section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg,#020617,#020617,#111827);
-}
-h1, h2, h3 {
-    color:#C6A969;
-}
+    .main { background: #020617; color: #f3f4f6; }
+    [data-testid="metric-container"] {
+        background-color: #111827;
+        border: 1px solid #1f2937;
+        padding: 15px;
+        border-radius: 14px;
+    }
+    h1, h2, h3 { color: #C6A969; }
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #020617, #111827);
+    }
+    .stButton > button {
+        background: #8B5E34;
+        color: white;
+        border-radius: 12px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
+st.set_page_config(page_title="EQUINELead", page_icon="🐎", layout="wide")
 
-EQUESTRIAN_COLORS = [
-    "#C6A969",
-    "#8B5E34",
-    "#4A90E2",
-    "#2ECC71",
-    "#F39C12",
-    "#E74C3C"
-]
+st.title("🐎 EQUINELead – Growth Intelligence")
+st.markdown("**Conversión de visitante casual → lead calificado para alto ticket**")
+st.caption("Caballos $50,000+ USD • Equipo premium $2,000+ USD • México City, 2026")
 
-px.defaults.template = "plotly_dark"
-px.defaults.color_discrete_sequence = EQUESTRIAN_COLORS
-
-
-st.title("🐎 EQUINELead")
-st.markdown("**Sistema para convertir visitantes casuales en leads calificados de alto ticket**")
-st.caption("Verticales: Eventos Ecuestres • Servicios Ecuestres • Caballos • Equipo Ecuestre")
-
-
+# ────────────────────────────────────────────────
+# CARGA DE DATOS
+# ────────────────────────────────────────────────
 @st.cache_data
 def cargar_datos():
     try:
         return pd.read_csv("users_enriched.csv")
     except FileNotFoundError:
-        st.error("No se encontró users_enriched.csv")
+        st.error("Falta 'users_enriched.csv' en la carpeta")
         st.stop()
 
 users = cargar_datos()
 
-
+# ────────────────────────────────────────────────
+# MODELO CACHEADO (solo señales capturables)
+# ────────────────────────────────────────────────
 @st.cache_resource
-def entrenar_modelo_realista():
+def entrenar_modelo():
     features = [
-        'location','age','gender','membership',
-        'interes_eventos','interes_accesorios','interes_servicios','interes_caballos',
-        'pages_viewed','duration_sec','viewed_high_value_content',
-        'time_on_listing_sec','high_intent_actions','amount'
+        'location', 'age', 'gender', 'membership',
+        'interes_eventos', 'interes_accesorios', 'interes_servicios', 'interes_caballos',
+        'pages_viewed', 'duration_sec', 'viewed_high_value_content',
+        'time_on_listing_sec', 'high_intent_actions', 'amount'
     ]
-
     X = users[features].copy()
-
-    for col in ['location','gender','membership']:
+    cat_cols = ['location', 'gender', 'membership']
+    for col in cat_cols:
         X[col] = X[col].astype('category')
-
-    y = (users['lead_type'].isin(
-        ['Lead caliente','Lead calificado $50k+']
-    )).astype(int)
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.25, random_state=42, stratify=y
-    )
-
+    
+    y = (users['lead_type'].isin(['Lead caliente', 'Lead calificado $50k+'])).astype(int)
+    
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42, stratify=y)
+    
     model = XGBClassifier(
-        n_estimators=300,
-        learning_rate=0.08,
-        max_depth=6,
-        subsample=0.85,
-        colsample_bytree=0.85,
-        random_state=42,
-        enable_categorical=True,
-        tree_method='hist'
+        n_estimators=300, learning_rate=0.08, max_depth=6,
+        subsample=0.85, colsample_bytree=0.85, random_state=42,
+        enable_categorical=True, tree_method='hist'
     )
-
     model.fit(X_train, y_train)
+    return model, X_test, y_test
 
-    return model, X_train, X_test, y_train, y_test
+model, X_test, y_test = entrenar_modelo()
 
-model_realista, X_train, X_test, y_train, y_test = entrenar_modelo_realista()
-
-
+# ────────────────────────────────────────────────
+# SIDEBAR
+# ────────────────────────────────────────────────
 with st.sidebar:
-    if os.path.exists("imagen2.png"):
-        st.image("imagen2.png", width=200)
-
-    st.title("Menú de Crecimiento")
-
-    pagina = st.radio(
-        "Selecciona sección",
-        [
-            "1. Dataset Sintético",
-            "2. Análisis Exploratorio (EDA)",
-            "3. Objetivo Growth & Clasificación",
-            "4. Modelado Predictivo",
-            "5. Dashboard Analítico",
-            "6. Recomendaciones de Acción",
-            "7. Predicción en Tiempo Real"
-        ]
-    )
-
+    st.image("EquineLead.png", width=150)
+    st.title("Menú Growth")
+    pagina = st.radio("Sección", [
+        "1. Introducción",
+        "2. Dataset Sintético",
+        "3. EDA",
+        "4. Modelado Predictivo",
+        "5. Content Hooks & Embudo",
+        "6. Predicción Real Time",
+        "7. Conclusión"
+    ])
     st.divider()
-    st.caption(
-        f"Dataset: {len(users):,} usuarios • "
-        f"{datetime.now().strftime('%d %b %Y %H:%M')}"
+    st.caption(f"Usuarios: {len(users):,} • {datetime.now().strftime('%d %b %Y')}")
+
+# ────────────────────────────────────────────────
+# 1. Introducción
+# ────────────────────────────────────────────────
+if pagina == "1. Introducción":
+    st.header("1. Introducción al Proyecto")
+    st.markdown("""
+    Mercado ecuestre de competición: **$37.3 mil millones anuales** en EE.UU.  
+    Desafío principal: Convertir **visitante casual** en **lead calificado** para  
+    - Caballos de $50,000 USD o más  
+    - Sillas / equipo premium de $2,000 USD o más  
+
+    Este dashboard muestra:  
+    - Dataset sintético realista  
+    - EDA enfocado en conversión  
+    - Modelo predictivo solo con señales comportamentales capturables  
+    - Content hooks personalizados  
+    - Embudo automatizado  
+    """)
+
+# ────────────────────────────────────────────────
+# 2. Dataset Sintético
+# ────────────────────────────────────────────────
+elif pagina == "2. Dataset Sintético":
+    st.header("2. Generación del Dataset Sintético")
+    st.markdown("""
+    Universo UHNW EE.UU.: ~208,560  
+    Participación estimada ecuestre: ~10%  
+    → 50,000 perfiles sintéticos para capturar eventos raros ($50k+).
+    """)
+    
+    fig_geo = px.pie(
+        users,
+        names='location',
+        title='Distribución Geográfica de Potenciales Leads (Prioridad para Scraping)'
     )
+    fig_geo.update_traces(textinfo='percent+label')
+    st.plotly_chart(fig_geo)
 
-
-if pagina == "1. Dataset Sintético":
-    st.header("1. Generación del Dataset Sintético")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("Justificación")
-        st.markdown("""
-Universo UHNW EE.UU.: ~208,560  
-Participación ecuestre estimada: ~10%  
-→ ~20,856 potenciales  
-
-Necesidad de eventos raros → **50,000 perfiles sintéticos**
-""")
-    with col2:
-        st.subheader("Limitaciones reales")
-        st.error("""
-• Anti-scraping  
-• GDPR / CCPA  
-• Datos económicos restringidos  
-• Sesgo público
-""")
-
-
-elif pagina == "2. Análisis Exploratorio (EDA)":
-    st.header("2. Análisis Exploratorio")
-    tab1, tab2, tab3 = st.tabs(["Resumen","Comportamiento","Correlaciones"])
+# ────────────────────────────────────────────────
+# 3. EDA
+# ────────────────────────────────────────────────
+elif pagina == "3. EDA":
+    st.header("3. Análisis Exploratorio (EDA)")
+    tab1, tab2, tab3 = st.tabs(["Resumen", "Distribuciones", "Correlaciones"])
+    
     with tab1:
-        c1,c2,c3,c4 = st.columns(4)
-        c1.metric("Usuarios", f"{len(users):,}")
-        c2.metric("Leads $50k+", f"{(users['lead_type'].isin(['Lead caliente','Lead calificado $50k+'])).sum():,}")
-        c3.metric("% Alto ticket", f"{(users['lead_type'].isin(['Lead caliente','Lead calificado $50k+'])).mean():.1%}")
-        try:
-            sessions = pd.read_csv("sessions_enriched.csv")
-            c4.metric("Sesiones", f"{len(sessions):,}")
-        except:
-            c4.metric("Sesiones", "N/A")
-
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Usuarios totales", f"{len(users):,}")
+        col2.metric("Leads $50k+", f"{(users['lead_type'] == 'Lead calificado $50k+').sum():,}")
+        col3.metric("% Leads Alto Ticket", f"{(users['lead_type'].isin(['Lead caliente', 'Lead calificado $50k+'])).mean():.1%}")
+    
     with tab2:
-        col1,col2 = st.columns(2)
-        with col1:
-            fig = px.histogram(users, x="lead_score", color="lead_type", opacity=0.85, marginal="box")
-            st.plotly_chart(fig, use_container_width=True)
-        with col2:
-            st.plotly_chart(px.pie(users, names="location"), use_container_width=True)
-        st.plotly_chart(px.box(users, x="lead_type", y="high_intent_actions"), use_container_width=True)
+        # Patrimonio Neto
+        fig_net = px.histogram(
+            users,
+            x="net_worth_range",
+            title="Distribución de Patrimonio Neto"
+        )
+        st.plotly_chart(fig_net)
+        
+        # Nivel de competición
+        fig_comp = px.bar(
+            users['competition_level'].value_counts(),
+            title="Nivel de competición"
+        )
+        st.plotly_chart(fig_comp)
+        
+        # Disciplinas preferidas
+        fig_disc = px.bar(
+            users['preferred_discipline'].value_counts().head(10),
+            title="Disciplinas preferidas (top)"
+        )
+        st.plotly_chart(fig_disc)
+        
+        # Lead Score vs Patrimonio
+        fig_ls_net = px.box(
+            users,
+            x="net_worth_range",
+            y="lead_score",
+            title="Lead Score vs Patrimonio Neto"
+        )
+        st.plotly_chart(fig_ls_net)
+        
+        # Leads por estado (gráfico de barras)
+        leads_estado = users[users['lead_type'] == 'Lead calificado $50k+'].groupby('location').size().reset_index(name='count')
+        fig_estado = px.bar(
+            leads_estado.sort_values('count', ascending=False),
+            x='location',
+            y='count',
+            title="Distribución de Leads Calificados por Estado"
+        )
+        st.plotly_chart(fig_estado)
 
     with tab3:
-        corr_cols = ['high_intent_actions','viewed_high_value_content','interes_caballos','time_on_listing_sec','pages_viewed','duration_sec','amount','lead_score']
+        # Correlaciones
+        corr_cols = ['age', 'household_income_annual', 'number_of_horses_owned', 'interes_caballos',
+                     'interes_accesorios', 'pages_viewed', 'viewed_high_value_content',
+                     'high_intent_actions', 'amount', 'lead_score']
         corr = users[corr_cols].corr()
-        fig_corr = px.imshow(corr, text_auto=".2f", color_continuous_scale=[[0,"#8B5E34"], [0.5,"#111827"], [1,"#C6A969"]])
-        st.plotly_chart(fig_corr, use_container_width=True)
+        fig_corr = px.imshow(
+            corr,
+            text_auto=".2f",
+            color_continuous_scale='RdBu_r',
+            title="Correlaciones – Features Clave para Scoring"
+        )
+        st.plotly_chart(fig_corr)
+        
+        # Heatmap intereses
+        intereses = users[['interes_caballos', 'interes_accesorios', 'interes_eventos', 'interes_servicios']]
+        corr_int = intereses.corr()
+        fig_int = px.imshow(
+            corr_int,
+            text_auto=".2f",
+            color_continuous_scale='RdBu_r',
+            title="Intereses por Vertical (Para Personalizar Hooks)"
+        )
+        st.plotly_chart(fig_int)
 
-
-elif pagina == "3. Objetivo Growth & Clasificación":
-    st.header("3. Objetivo del Growth")
-    st.markdown("""
-### 🎯 Meta del sistema
-Convertir **visitantes casuales** en **leads calificados de alto valor** dentro del ecosistema ecuestre.
----
-### 💰 Targets comerciales
-- Caballos premium → **$50,000+**
-- Equipamiento profesional → **$2,000+**
----
-### 🤖 Problema de Machine Learning
-Modelo de **clasificación binaria**:
-""")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.success("Clase 1 (Lead Calificado)\n- Lead caliente\n- Lead calificado $50k+")
-    with col2:
-        st.error("Clase 0 (No prioritario)\n- Casual\n- Interesado medio")
-
-
+# ────────────────────────────────────────────────
+# 4. Modelado Predictivo
+# ────────────────────────────────────────────────
 elif pagina == "4. Modelado Predictivo":
-    st.header("4. Modelado Predictivo")
-    probs = model_realista.predict_proba(X_test)[:,1]
-    c1,c2 = st.columns(2)
-    c1.metric("ROC-AUC", f"{roc_auc_score(y_test, probs):.4f}")
-    c2.metric("Precisión clase 1", "96.84%")
+    st.header("4. Modelado Predictivo – Solo señales capturables")
+    probs = model.predict_proba(X_test)[:,1]
+    col1, col2 = st.columns(2)
+    col1.metric("ROC-AUC", f"{roc_auc_score(y_test, probs):.4f}")
+    col2.metric("Precisión Clase 1 (umbral 0.31)", "96.84%")
+    
     preds = (probs >= 0.3098).astype(int)
     cm = confusion_matrix(y_test, preds)
-    st.plotly_chart(px.imshow(cm, text_auto=True, color_continuous_scale="Blues"), use_container_width=True)
-    imp = pd.Series(model_realista.feature_importances_, index=X_test.columns).sort_values(ascending=False).head(10)
-    fig_imp = px.bar(imp[::-1], orientation="h", color=imp[::-1], color_continuous_scale=["#8B5E34","#C6A969"], title="Importancia de Variables")
-    st.plotly_chart(fig_imp, use_container_width=True)
+    fig_cm = px.imshow(
+        cm,
+        text_auto=True,
+        color_continuous_scale='Blues',
+        title="Matriz de Confusión – Modelo Realista"
+    )
+    st.plotly_chart(fig_cm)
+    
+    imp = pd.Series(model.feature_importances_, index=X_test.columns).sort_values(ascending=False)
+    fig_imp = px.bar(
+        imp.head(10),
+        title="Importancia de Variables para Lead Scoring (Señales Capturables)"
+    )
+    st.plotly_chart(fig_imp)
 
+# ────────────────────────────────────────────────
+# 5. Content Hooks & Embudo
+# ────────────────────────────────────────────────
+elif pagina == "5. Content Hooks & Embudo":
+    st.header("5. Content Hooks y Embudo Automatizado")
+    
+    CONTENT_HOOKS = {
+        "Casual": {
+            "Caballos": "5 errores comunes al comprar tu primer caballo de competición",
+            "Equipo Ecuestre": "Guía: Cómo elegir tu primera silla de montar sin equivocarte",
+            "Eventos Ecuestres": "Calendario 2026: Los 10 eventos ecuestres que no puedes perderte",
+            "Servicios Ecuestres": "¿Cuánto cuesta realmente entrenar un caballo elite? Descúbrelo gratis"
+        },
+        "Interesado Medio": {
+            "Caballos": "Checklist descargable: Qué revisar antes de comprar un caballo de $50k+",
+            "Equipo Ecuestre": "Comparativa 2026: Las 7 sillas de salto más vendidas en Florida",
+            "Eventos Ecuestres": "Acceso anticipado: Entradas VIP Winter Equestrian Festival",
+            "Servicios Ecuestres": "Directorio exclusivo: Entrenadores top en Ocala y Wellington"
+        },
+        "Lead Caliente": {
+            "Caballos": "3 caballos Grand Prix disponibles ahora – agenda visita privada",
+            "Equipo Ecuestre": "Oferta limitada: 15% off en sillas premium esta semana",
+            "Eventos Ecuestres": "Invitación exclusiva: Mesa VIP en próximo evento elite",
+            "Servicios Ecuestres": "Consulta gratuita 30 min con entrenador FEI – cupo limitado"
+        },
+        "Lead Calificado $50k+": {
+            "Caballos": "Acceso VIP: Subasta privada de caballos elite (Wellington / Kentucky)",
+            "Equipo Ecuestre": "Silla customizada a tu medida – contacto directo con artesano",
+            "Eventos Ecuestres": "Pase backstage + meet & greet con jinetes top",
+            "Servicios Ecuestres": "Paquete elite: Entrenamiento + establo premium 6 meses"
+        }
+    }
+    
+    st.subheader("Matriz de Content Hooks")
+    st.table(pd.DataFrame(CONTENT_HOOKS))
+    
+    st.subheader("Embudo Automatizado")
+    etapas = pd.DataFrame({
+        'Probabilidad': ['< 0.15', '0.15–0.30', '0.31–0.59', '≥ 0.60'],
+        'Segmento': ['Casual', 'Interesado Medio', 'Lead Caliente', 'Lead Calificado $50k+'],
+        'Acción': ['Educación', 'Lead magnet', 'Nutrición agresiva', 'Contacto prioritario']
+    })
+    st.table(etapas)
 
-elif pagina == "5. Dashboard Analítico":
-    st.header("5. Dashboard Analítico")
-    col1,col2 = st.columns([3,2])
-    with col1:
-        st.plotly_chart(px.histogram(users, x="lead_score", color="lead_type"), use_container_width=True)
-    with col2:
-        st.plotly_chart(px.box(users, x="location", y="high_intent_actions", color="lead_type"), use_container_width=True)
-    fig_scatter = px.scatter(users.sample(2000), x="viewed_high_value_content", y="high_intent_actions", color="lead_type", size="amount", opacity=0.7, symbol="lead_type")
-    st.plotly_chart(fig_scatter, use_container_width=True)
-
-
-elif pagina == "6. Recomendaciones de Acción":
-    st.header("6. Recomendaciones de Acción")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.success("### ⚡ Quick Wins\n- Tracking de high_intent_actions\n- Content hooks por vertical\n- Retargeting automático (threshold 0.31)")
-    with col2:
-        st.info("### 🚀 Mediano plazo\n- Integrar scoring en CRM\n- Audiencias lookalike\n- Scraping tendencias")
-    with col3:
-        st.warning("### 🧠 Largo plazo\n- Reentrenamiento semanal\n- Alianzas estratégicas\n- WhatsApp Business API")
-    st.divider()
-    st.markdown("### Impacto esperado")
-    st.table(pd.DataFrame({"Acción": ["Lead scoring realtime", "Segmentación dinámica", "Automatización marketing"], "Impacto": ["↑ Conversión", "↓ CAC", "↑ ROI"]}))
-
-elif pagina == "7. Predicción en Tiempo Real":
-    st.header("7. Predicción en Tiempo Real")
-    st.write("Simula un visitante y obtén su probabilidad de lead calificado")
+# ────────────────────────────────────────────────
+# 6. Predicción Real Time
+# ────────────────────────────────────────────────
+elif pagina == "6. Predicción Real Time":
+    st.header("6. Predicción en Tiempo Real")
     col1, col2 = st.columns(2)
     with col1:
         location = st.selectbox("Ubicación", sorted(users['location'].unique()))
         age = st.slider("Edad", 18, 90, 45)
         gender = st.selectbox("Género", ["Hombre", "Mujer", "No-binario"])
         membership = st.selectbox("Membresía", ["community", "professional"])
+    
     with col2:
-        interes_caballos = st.slider("Interés Caballos", 0.0, 1.0, 0.8, 0.05)
+        interes_caballos = st.slider("Interés Caballos", 0.0, 1.0, 0.8)
         high_intent = st.slider("High Intent Actions", 0, 15, 4)
-        viewed_high = st.slider("Vistas Contenido Premium", 0, 20, 5)
-        time_listing = st.slider("Tiempo en Listings (s)", 0, 900, 180)
-        pages = st.slider("Páginas vistas", 1, 50, 12)
-        amount = st.slider("Monto histórico ($)", 0, 15000, 1200)
-    if st.button("🔮 Predecir", type="primary"):
+        viewed_high = st.slider("Vistas Premium", 0, 20, 5)
+        time_listing = st.slider("Tiempo Listings (s)", 0, 900, 180)
+        pages = st.slider("Páginas Vistas", 1, 50, 12)
+        amount = st.slider("Monto Histórico ($)", 0, 15000, 1200)
+    
+    if st.button("🔮 Predecir"):
         input_data = pd.DataFrame([{
             'location': location, 'age': age, 'gender': gender, 'membership': membership,
             'interes_eventos': 0.5, 'interes_accesorios': 0.6, 'interes_servicios': 0.4,
@@ -271,19 +317,41 @@ elif pagina == "7. Predicción en Tiempo Real":
             'viewed_high_value_content': viewed_high, 'time_on_listing_sec': time_listing,
             'high_intent_actions': high_intent, 'amount': amount
         }])
-        for col in ['location','gender','membership']:
+        for col in ['location', 'gender', 'membership']:
             input_data[col] = input_data[col].astype('category')
-        prob = model_realista.predict_proba(input_data)[0, 1]
+        
+        prob = model.predict_proba(input_data)[0, 1]
         prob_float = float(prob)
+        
         st.progress(prob_float)
-        st.metric("Probabilidad lead calificado $50k+", f"{prob_float:.1%}")
+        st.metric("Probabilidad Lead $50k+", f"{prob_float:.1%}")
+        
         if prob_float >= 0.60:
-            st.success(f"🎯 LEAD CALIFICADO $50k+ → {prob_float:.1%}")
-            st.balloons()
+            st.success(f"🎯 Lead Calificado $50k+ → {prob_float:.1%}")
         elif prob_float >= 0.31:
             st.warning(f"🔥 Lead Caliente → {prob_float:.1%}")
         else:
             st.info(f"👤 Casual / Interesado → {prob_float:.1%}")
 
+# ────────────────────────────────────────────────
+# 7. Conclusión
+# ────────────────────────────────────────────────
+elif pagina == "7. Conclusión":
+    st.header("7. Conclusión e Insights Growth")
+    st.markdown("""
+    **Resumen:**  
+    Sistema completo para identificar y convertir leads de alto valor en el mercado ecuestre.
+
+    **Insights clave:**  
+    - Priorizar **Florida, Texas, Kentucky**  
+    - Enfocar en **high_intent_actions** y **vistas de contenido premium**  
+    - Umbral óptimo ~0.31 para activar embudo agresivo  
+
+    **Próximos pasos:**  
+    - Integrar con ActiveCampaign / HubSpot  
+    - Implementar pixel de tracking  
+    - Campañas lookalike basadas en leads calificados
+    """)
+
 st.divider()
-st.caption("Dashboard Growth Ecuestre • Enfoque conversión alto ticket • S02-26-Equipo49-Data Science")
+st.caption("EQUINELead • Growth Ecuestre • México City, 2026")
