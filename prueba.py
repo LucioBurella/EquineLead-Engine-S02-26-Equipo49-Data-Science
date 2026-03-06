@@ -246,11 +246,17 @@ elif pagina == "4. Modelado Predictivo":
     st.plotly_chart(fig_imp)
 
 # ────────────────────────────────────────────────
-# 5. Content Hooks & Embudo
+# 5. CONTENT HOOKS & EMBUDO (Tablas + Galería PNG)
 # ────────────────────────────────────────────────
 elif pagina == "5. Content Hooks & Embudo":
     st.header("5. Content Hooks y Embudo Automatizado")
     
+    st.markdown("""
+    La estrategia se divide en la narrativa del contenido y la acción operativa según el scoring del lead.
+    """)
+
+    # 1. Matriz de Content Hooks (Texto)
+    st.subheader("Matriz de Content Hooks (Estrategia)")
     CONTENT_HOOKS = {
         "Casual": {
             "Caballos": "5 errores comunes al comprar tu primer caballo de competición",
@@ -277,17 +283,41 @@ elif pagina == "5. Content Hooks & Embudo":
             "Servicios Ecuestres": "Paquete elite: Entrenamiento + establo premium 6 meses"
         }
     }
-    
-    st.subheader("Matriz de Content Hooks")
     st.table(pd.DataFrame(CONTENT_HOOKS))
-    
-    st.subheader("Embudo Automatizado")
+
+    # 2. Acciones de Embudo (Movido arriba)
+    st.subheader("Acciones Operativas del Embudo")
     etapas = pd.DataFrame({
         'Probabilidad': ['< 0.15', '0.15–0.30', '0.31–0.59', '≥ 0.60'],
         'Segmento': ['Casual', 'Interesado Medio', 'Lead Caliente', 'Lead Calificado $50k+'],
-        'Acción': ['Educación', 'Lead magnet', 'Nutrición agresiva', 'Contacto prioritario']
+        'Acción Proyectada': ['Educación / Branding', 'Entrega de Lead Magnet', 'Nutrición Comercial', 'Cierre High Ticket']
     })
     st.table(etapas)
+
+    st.divider()
+
+    # 3. Galería de Imágenes (Al final)
+    st.subheader("Ejemplos de Content Hooks Visuales")
+    
+    def mostrar_hook_png(ruta, titulo, descripcion):
+        if os.path.exists(ruta):
+            st.markdown(f"#### {titulo}")
+            st.image(ruta, use_container_width=True)
+            st.caption(descripcion)
+        else:
+            st.warning(f"⚠️ No se encontró el archivo `{ruta}`. Verifica que sea PNG y esté en la carpeta raíz.")
+
+    col_1, col_2 = st.columns(2)
+
+    with col_1:
+        mostrar_hook_png("Marketing (1).png", "Etapa: Descubrimiento", "Visual para leads casuales (Educación).")
+        st.divider()
+        mostrar_hook_png("Marketing (4).png", "Etapa: Consideración", "Visual para leads interesados (Checklist).")
+
+    with col_2:
+        mostrar_hook_png("Marketing (3).png", "Etapa: Decisión", "Visual para leads calientes (Inventario).")
+        st.divider()
+        mostrar_hook_png("Marketing (2).png", "Etapa: Cierre / VIP", "Visual para leads elite (Subasta Privada).")
 
 # ────────────────────────────────────────────────
 # 6. Predicción Real Time
