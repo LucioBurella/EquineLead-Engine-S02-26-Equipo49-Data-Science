@@ -453,4 +453,4 @@ elif pagina == "7. Conclusión":
     """)
 
 st.divider()
-st.caption("EQUINELead • Growth Ecuestre • México City, 2026")
+st.caption("EQUINELead • Growth Ecuestre • S02-26-Equipo49-Data Science")
