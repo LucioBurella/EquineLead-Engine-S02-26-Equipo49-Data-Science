@@ -294,7 +294,52 @@ elif pagina == "5. Content Hooks & Embudo":
 # ────────────────────────────────────────────────
 elif pagina == "6. Predicción Real Time":
     st.header("6. Predicción en Tiempo Real")
+    st.markdown("Ingresa los datos del visitante para obtener probabilidad, clasificación y **content hook sugerido**")
+
+    # Tabla de Content Hooks (puedes moverla a una variable global si prefieres)
+    CONTENT_HOOKS = {
+        "Casual": {
+            "Caballos": "5 errores comunes al comprar tu primer caballo de competición",
+            "Equipo Ecuestre": "Guía: Cómo elegir tu primera silla de montar sin equivocarte",
+            "Eventos Ecuestres": "Calendario 2026: Los 10 eventos ecuestres que no puedes perderte",
+            "Servicios Ecuestres": "¿Cuánto cuesta realmente entrenar un caballo elite? Descúbrelo gratis"
+        },
+        "Interesado Medio": {
+            "Caballos": "Checklist descargable: Qué revisar antes de comprar un caballo de $50k+",
+            "Equipo Ecuestre": "Comparativa 2026: Las 7 sillas de salto más vendidas en Florida",
+            "Eventos Ecuestres": "Acceso anticipado: Entradas VIP Winter Equestrian Festival",
+            "Servicios Ecuestres": "Directorio exclusivo: Entrenadores top en Ocala y Wellington"
+        },
+        "Lead Caliente": {
+            "Caballos": "3 caballos Grand Prix disponibles ahora – agenda visita privada",
+            "Equipo Ecuestre": "Oferta limitada: 15% off en sillas premium esta semana",
+            "Eventos Ecuestres": "Invitación exclusiva: Mesa VIP en próximo evento elite",
+            "Servicios Ecuestres": "Consulta gratuita 30 min con entrenador FEI – cupo limitado"
+        },
+        "Lead Calificado $50k+": {
+            "Caballos": "Acceso VIP: Subasta privada de caballos elite (Wellington / Kentucky)",
+            "Equipo Ecuestre": "Silla customizada a tu medida – contacto directo con artesano",
+            "Eventos Ecuestres": "Pase backstage + meet & greet con jinetes top",
+            "Servicios Ecuestres": "Paquete elite: Entrenamiento + establo premium 6 meses"
+        }
+    }
+
+    def elegir_content_hook(segmento, interes_caballos, interes_accesorios, interes_eventos, interes_servicios):
+        # Elegir vertical prioritaria según intereses
+        if interes_caballos >= 0.7:
+            vertical = "Caballos"
+        elif interes_accesorios >= 0.7:
+            vertical = "Equipo Ecuestre"
+        elif interes_eventos >= 0.6:
+            vertical = "Eventos Ecuestres"
+        else:
+            vertical = "Servicios Ecuestres"
+        
+        # Devolver hook o fallback
+        return CONTENT_HOOKS.get(segmento, {}).get(vertical, "Contenido educativo general – inicia nurturing")
+
     col1, col2 = st.columns(2)
+    
     with col1:
         location = st.selectbox("Ubicación", sorted(users['location'].unique()))
         age = st.slider("Edad", 18, 90, 45)
@@ -302,36 +347,90 @@ elif pagina == "6. Predicción Real Time":
         membership = st.selectbox("Membresía", ["community", "professional"])
     
     with col2:
-        interes_caballos = st.slider("Interés Caballos", 0.0, 1.0, 0.8)
+        interes_caballos = st.slider("Interés Caballos", 0.0, 1.0, 0.8, 0.05)
+        interes_accesorios = st.slider("Interés Accesorios", 0.0, 1.0, 0.6, 0.05)
+        interes_eventos = st.slider("Interés Eventos", 0.0, 1.0, 0.5, 0.05)
+        interes_servicios = st.slider("Interés Servicios", 0.0, 1.0, 0.5, 0.05)
         high_intent = st.slider("High Intent Actions", 0, 15, 4)
-        viewed_high = st.slider("Vistas Premium", 0, 20, 5)
-        time_listing = st.slider("Tiempo Listings (s)", 0, 900, 180)
+        viewed_high = st.slider("Vistas Contenido Premium", 0, 20, 5)
+        time_listing = st.slider("Tiempo en Listings (s)", 0, 900, 180)
         pages = st.slider("Páginas Vistas", 1, 50, 12)
         amount = st.slider("Monto Histórico ($)", 0, 15000, 1200)
-    
-    if st.button("🔮 Predecir"):
+
+    if st.button("🔮 Predecir Clasificación", type="primary"):
         input_data = pd.DataFrame([{
-            'location': location, 'age': age, 'gender': gender, 'membership': membership,
-            'interes_eventos': 0.5, 'interes_accesorios': 0.6, 'interes_servicios': 0.4,
-            'interes_caballos': interes_caballos, 'pages_viewed': pages, 'duration_sec': 420.0,
-            'viewed_high_value_content': viewed_high, 'time_on_listing_sec': time_listing,
-            'high_intent_actions': high_intent, 'amount': amount
+            'location': location,
+            'age': age,
+            'gender': gender,
+            'membership': membership,
+            'interes_eventos': interes_eventos,
+            'interes_accesorios': interes_accesorios,
+            'interes_servicios': interes_servicios,
+            'interes_caballos': interes_caballos,
+            'pages_viewed': pages,
+            'duration_sec': 420.0,
+            'viewed_high_value_content': viewed_high,
+            'time_on_listing_sec': time_listing,
+            'high_intent_actions': high_intent,
+            'amount': amount
         }])
+        
         for col in ['location', 'gender', 'membership']:
             input_data[col] = input_data[col].astype('category')
         
         prob = model.predict_proba(input_data)[0, 1]
         prob_float = float(prob)
         
+        # Determinar segmento
+        if prob_float >= 0.60:
+            segmento = "Lead Calificado $50k+"
+            icon = "🎯"
+            color = "success"
+        elif prob_float >= 0.31:
+            segmento = "Lead Caliente"
+            icon = "🔥"
+            color = "warning"
+        elif prob_float >= 0.15:
+            segmento = "Interesado Medio"
+            icon = "🔵"
+            color = "info"
+        else:
+            segmento = "Casual"
+            icon = "👤"
+            color = "info"
+        
+        # Elegir hook
+        hook = elegir_content_hook(
+            segmento,
+            interes_caballos,
+            interes_accesorios,
+            interes_eventos,
+            interes_servicios
+        )
+        
+        accion = {
+            "Casual": "Content hook educativo / awareness",
+            "Interesado Medio": "Lead magnet + retargeting moderado",
+            "Lead Caliente": "Drip personalizado + agendar llamada/Whatsapp",
+            "Lead Calificado $50k+": "Contacto prioritario + oferta VIP inmediata"
+        }[segmento]
+        
+        # Mostrar resultados
         st.progress(prob_float)
         st.metric("Probabilidad Lead $50k+", f"{prob_float:.1%}")
         
-        if prob_float >= 0.60:
-            st.success(f"🎯 Lead Calificado $50k+ → {prob_float:.1%}")
-        elif prob_float >= 0.31:
-            st.warning(f"🔥 Lead Caliente → {prob_float:.1%}")
+        if color == "success":
+            st.success(f"{icon} {segmento} → {prob_float:.1%}")
+        elif color == "warning":
+            st.warning(f"{icon} {segmento} → {prob_float:.1%}")
         else:
-            st.info(f"👤 Casual / Interesado → {prob_float:.1%}")
+            st.info(f"{icon} {segmento} → {prob_float:.1%}")
+        
+        st.markdown("**Acción recomendada inmediata**")
+        st.info(accion)
+        
+        st.markdown("**Content Hook sugerido**")
+        st.markdown(f"**{hook}**")
 
 # ────────────────────────────────────────────────
 # 7. Conclusión
